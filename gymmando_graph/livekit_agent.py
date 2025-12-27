@@ -1,0 +1,113 @@
+"""
+LiveKit Agent Entry Point for Gymmando Voice Assistant
+
+This module provides the main entry point for the Gymmando voice assistant agent.
+It configures the LiveKit agent session with speech-to-text, text-to-speech,
+language model, and voice activity detection services.
+
+The agent uses:
+- Groq Whisper for speech-to-text (STT)
+- OpenAI TTS for text-to-speech (voice: onyx)
+- Groq Llama 3.1 8B Instant for language model (LLM)
+- Silero for voice activity detection (VAD)
+"""
+
+from dotenv import load_dotenv
+from livekit import agents
+from livekit.agents import Agent, AgentSession
+from livekit.plugins import groq, openai, silero
+from utils import Logger
+
+# Load environment variables
+load_dotenv()
+
+# Initialize logger
+logger = Logger().get_logger()
+
+
+class Gymmando(Agent):
+    """
+    Gymmando Voice Assistant Agent
+
+    A conversational agent designed to assist users with gym-related queries
+    and workout tracking through voice interactions.
+
+    Attributes:
+        instructions (str): System instructions defining the agent's behavior
+                           and personality as a helpful gym assistant.
+    """
+
+    def __init__(self):
+        """
+        Initialize the Gymmando agent with default instructions.
+
+        The agent is configured to be helpful and identify itself as "Gym-mando".
+        """
+        instructions = "You are a helpful gym assistant. Your name is Gym-mando."
+        super().__init__(instructions=instructions)
+        logger.info("✅ Gymmando agent initialized")
+
+
+async def entrypoint(ctx: agents.JobContext):
+    """
+    LiveKit agent entry point function.
+
+    This is the main entry point called by LiveKit when a new agent job starts.
+    It sets up the agent session with all required services (STT, TTS, LLM, VAD)
+    and starts the conversation with a greeting.
+
+    Args:
+        ctx (agents.JobContext): The LiveKit job context containing room information
+                                 and other job metadata.
+
+    Configuration:
+        - STT: Groq Whisper (whisper-large-v3-turbo) for speech recognition
+        - TTS: OpenAI TTS with "onyx" voice for natural speech synthesis
+        - LLM: Groq Llama 3.1 8B Instant for fast, cost-effective language processing
+        - VAD: Silero VAD for voice activity detection (speech/silence detection)
+    """
+    logger.info("🚀 Starting Gymmando agent session")
+    logger.info(f"📍 Room: {ctx.room.name if ctx.room else 'N/A'}")
+
+    try:
+        # Configure agent session with all required services
+        logger.info("⚙️  Configuring agent session services...")
+        session = AgentSession(
+            stt=groq.STT(model="whisper-large-v3-turbo"),
+            tts=openai.TTS(voice="onyx"),
+            llm=groq.LLM(model="llama-3.1-8b-instant"),
+            vad=silero.VAD.load(),
+        )
+        logger.info("✅ Agent session services configured successfully")
+        logger.info("   - STT: Groq Whisper (whisper-large-v3-turbo)")
+        logger.info("   - TTS: OpenAI (onyx voice)")
+        logger.info("   - LLM: Groq Llama 3.1 8B Instant")
+        logger.info("   - VAD: Silero")
+
+        # Initialize the Gymmando agent
+        logger.info("🤖 Initializing Gymmando agent...")
+        gymmando = Gymmando()
+
+        # Start the agent session with the room
+        logger.info("🎯 Starting agent session with room...")
+        await session.start(room=ctx.room, agent=gymmando)
+        logger.info("✅ Agent session started successfully")
+
+        # Generate initial greeting
+        logger.info("👋 Generating greeting message...")
+        await session.generate_reply(instructions="Say hello!")
+        logger.info("✅ Greeting sent, agent is ready for conversation")
+
+    except Exception as e:
+        logger.error(f"❌ Error during agent initialization: {str(e)}", exc_info=True)
+        raise
+
+
+if __name__ == "__main__":
+    """
+    Main entry point when running the agent directly.
+
+    Starts the LiveKit agent worker with the entrypoint function.
+    """
+    logger.info("🎬 Starting Gymmando LiveKit agent worker...")
+    agents.cli.run_app(agents.WorkerOptions(entrypoint_fnc=entrypoint))
