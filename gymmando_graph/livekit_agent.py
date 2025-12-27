@@ -12,6 +12,8 @@ The agent uses:
 - Silero for voice activity detection (VAD)
 """
 
+from pathlib import Path
+
 from dotenv import load_dotenv
 from livekit import agents
 from livekit.agents import Agent, AgentSession
@@ -23,6 +25,10 @@ load_dotenv()
 
 # Initialize logger
 logger = Logger().get_logger()
+
+# Get project root directory
+PROJECT_ROOT = Path(__file__).parent
+PROMPTS_DIR = PROJECT_ROOT / "livekit_agent_prompt_templates"
 
 
 class Gymmando(Agent):
@@ -43,8 +49,11 @@ class Gymmando(Agent):
 
         The agent is configured to be helpful and identify itself as "Gym-mando".
         """
-        instructions = "You are a helpful gym assistant. Your name is Gym-mando."
-        super().__init__(instructions=instructions)
+
+        system_prompt = (PROMPTS_DIR / "main_llm_system_prompt.md").read_text()
+
+        super().__init__(instructions=system_prompt)
+
         logger.info("✅ Gymmando agent initialized")
 
 
@@ -68,6 +77,9 @@ async def entrypoint(ctx: agents.JobContext):
     """
     logger.info("🚀 Starting Gymmando agent session")
     logger.info(f"📍 Room: {ctx.room.name if ctx.room else 'N/A'}")
+
+    # Load greeting prompt directly
+    greeting_prompt = (PROMPTS_DIR / "main_llm_greeting_prompt.md").read_text()
 
     try:
         # Configure agent session with all required services
@@ -95,7 +107,7 @@ async def entrypoint(ctx: agents.JobContext):
 
         # Generate initial greeting
         logger.info("👋 Generating greeting message...")
-        await session.generate_reply(instructions="Say hello!")
+        await session.generate_reply(instructions=greeting_prompt)
         logger.info("✅ Greeting sent, agent is ready for conversation")
 
     except Exception as e:
