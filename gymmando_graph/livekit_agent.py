@@ -58,25 +58,51 @@ class Gymmando(Agent):
         logger.info("✅ Gymmando agent initialized")
 
     @function_tool
-    async def workout(self, context: RunContext, transcript: str) -> str:
-        """Log a workout or query workout history. Use this for exercise-related requests."""
-        # TODO: Implement workout graph call
-        logger.info(f"🏋️ Workout function called with: {transcript}")
-        return "Workout called"
+    async def workout(self, context: RunContext, transcript: str, intent: str) -> str:
+        """
+        Handle workout-related requests. Use this for exercise-related queries.
+
+        Args:
+            transcript: The user's message about workouts
+            intent: Either 'put' to store workout data or 'get' to retrieve workout history
+        """
+        logger.info(
+            f"🏋️ Workout function called - Intent: {intent}, Transcript: {transcript}"
+        )
+        # TODO: Call workout graph with intent to route to PUT or GET path
+        return f"Workout called with intent: {intent}"
 
     @function_tool
-    async def nutrition(self, context: RunContext, transcript: str) -> str:
-        """Log meals or query nutrition info. Use this for food/diet-related requests."""
-        # TODO: Implement nutrition graph call
-        logger.info(f"🍗 Nutrition function called with: {transcript}")
-        return "Nutrition called"
+    async def nutrition(self, context: RunContext, transcript: str, intent: str) -> str:
+        """
+        Handle nutrition-related requests. Use this for food/diet-related queries.
+
+        Args:
+            transcript: The user's message about nutrition
+            intent: Either 'put' to store meal data or 'get' to retrieve nutrition info
+        """
+        logger.info(
+            f"🍗 Nutrition function called - Intent: {intent}, Transcript: {transcript}"
+        )
+        # TODO: Call nutrition graph with intent to route to PUT or GET path
+        return f"Nutrition called with intent: {intent}"
 
     @function_tool
-    async def measurements(self, context: RunContext, transcript: str) -> str:
-        """Log body measurements or query measurement history. Use for weight/body tracking."""
-        # TODO: Implement measurements graph call
-        logger.info(f"📏 Measurements function called with: {transcript}")
-        return "Measurements called"
+    async def measurements(
+        self, context: RunContext, transcript: str, intent: str
+    ) -> str:
+        """
+        Handle body measurement requests. Use this for weight/body tracking queries.
+
+        Args:
+            transcript: The user's message about measurements
+            intent: Either 'put' to store measurement data or 'get' to retrieve measurement history
+        """
+        logger.info(
+            f"📏 Measurements function called - Intent: {intent}, Transcript: {transcript}"
+        )
+        # TODO: Call measurements graph with intent to route to PUT or GET path
+        return f"Measurements called with intent: {intent}"
 
 
 async def entrypoint(ctx: agents.JobContext):
