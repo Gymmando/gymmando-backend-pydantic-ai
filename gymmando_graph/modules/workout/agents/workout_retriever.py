@@ -1,3 +1,3 @@
-class WorkoutGraph:
+class WprkoutRetriever:
     def __init__(self):
         pass
