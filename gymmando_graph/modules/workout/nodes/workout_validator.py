@@ -1,3 +1,6 @@
+from gymmando_graph.modules.workout.schemas import WorkoutState
+
+
 class WorkoutValidator:
     """Validates workout data completeness."""
 
@@ -6,7 +9,7 @@ class WorkoutValidator:
     def __init__(self):
         pass
 
-    def validate(self, state: dict) -> dict:
+    def validate(self, state: WorkoutState) -> WorkoutState:
         """
         Check if all required fields are present.
 
@@ -19,16 +22,12 @@ class WorkoutValidator:
         missing_fields = []
 
         for field in self.REQUIRED_FIELDS:
-            value = state.get(field)
+            value = getattr(state, field, None)
             if value is None or value == "":
                 missing_fields.append(field)
 
         # Update state
-        state["validation_status"] = "complete" if not missing_fields else "incomplete"
-        state["missing_fields"] = missing_fields
+        state.validation_status = "complete" if not missing_fields else "incomplete"
+        state.missing_fields = missing_fields
 
         return state
-
-    def is_complete(self, state: dict) -> bool:
-        """Quick check if state is complete."""
-        return all(state.get(field) for field in self.REQUIRED_FIELDS)

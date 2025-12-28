@@ -8,7 +8,7 @@ from langchain_core.prompts import (
     HumanMessagePromptTemplate,
     SystemMessagePromptTemplate,
 )
-from langchain_groq import ChatGroq
+from langchain_openai import ChatOpenAI
 
 from gymmando_graph.modules.workout.schemas import WorkoutParserResponse
 from gymmando_graph.utils import PromptTemplateLoader
@@ -39,9 +39,9 @@ class WorkoutParser:
             [system_message, human_message]
         ).partial(format_instructions=format_instructions)
 
-        # initialize the LLM groq
-        self.llm = ChatGroq(
-            model="llama-3.1-8b-instant",  # or "llama-3.3-70b-versatile" for better quality
+        # initialize the LLM (OpenAI)
+        self.llm = ChatOpenAI(
+            model="gpt-4o-mini",
             temperature=0,
         )
 

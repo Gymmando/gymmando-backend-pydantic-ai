@@ -20,6 +20,8 @@ from livekit.agents import Agent, AgentSession, RunContext
 from livekit.agents.llm import function_tool
 from livekit.plugins import groq, openai, silero
 
+from gymmando_graph.modules.workout.schemas import WorkoutState
+from gymmando_graph.modules.workout.workout_graph import WorkoutGraph
 from gymmando_graph.utils import Logger
 
 # Load environment variables
@@ -45,16 +47,23 @@ class Gymmando(Agent):
                            and personality as a helpful gym assistant.
     """
 
-    def __init__(self):
+    def __init__(self, user_id: str = "default_user"):
         """
         Initialize the Gymmando agent with default instructions.
 
         The agent is configured to be helpful and identify itself as "Gym-mando".
+
+        Args:
+            user_id: User identifier for tracking workouts and personalization
         """
 
         system_prompt = (PROMPTS_DIR / "main_llm_system_prompt.md").read_text()
 
         super().__init__(instructions=system_prompt)
+
+        # Initialize workout graph
+        self.workout_graph = WorkoutGraph()
+        self.user_id = user_id
 
         logger.info("✅ Gymmando agent initialized")
 
@@ -70,8 +79,28 @@ class Gymmando(Agent):
         logger.info(
             f"🏋️ Workout function called - Intent: {intent}, Transcript: {transcript}"
         )
-        # TODO: Call workout graph with intent to route to PUT or GET path
-        return f"Workout called with intent: {intent}"
+
+        # Create workout state from user input
+        state = WorkoutState(user_input=transcript, user_id=self.user_id, intent=intent)
+
+        # Run the workout graph
+        try:
+            state = self.workout_graph.run(state)
+
+            # Generate response based on validation status
+            if state.validation_status == "complete":
+                response = f"Got it! I've logged: {state.exercise}, {state.sets} sets, {state.reps} reps"
+                if state.weight:
+                    response += f", {state.weight}"
+                response += ". Would you like to save this workout?"
+            else:
+                missing = ", ".join(state.missing_fields)
+                response = f"I need a bit more info. Could you tell me the {missing}?"
+
+            return response
+        except Exception as e:
+            logger.error(f"Error processing workout: {e}", exc_info=True)
+            return "Sorry, I encountered an error processing your workout. Could you try again?"
 
     @function_tool
     async def nutrition(self, context: RunContext, transcript: str, intent: str) -> str:
@@ -136,18 +165,26 @@ async def entrypoint(ctx: agents.JobContext):
         session = AgentSession(
             stt=groq.STT(model="whisper-large-v3-turbo"),
             tts=openai.TTS(voice="onyx"),
-            llm=groq.LLM(model="llama-3.1-8b-instant"),
+            llm=openai.LLM(
+                model="gpt-4o-mini"
+            ),  # Using OpenAI to avoid Groq rate limits
             vad=silero.VAD.load(),
         )
         logger.info("✅ Agent session services configured successfully")
         logger.info("   - STT: Groq Whisper (whisper-large-v3-turbo)")
         logger.info("   - TTS: OpenAI (onyx voice)")
-        logger.info("   - LLM: Groq Llama 3.1 8B Instant")
+        logger.info("   - LLM: OpenAI GPT-4o-mini")
         logger.info("   - VAD: Silero")
 
         # Initialize the Gymmando agent
         logger.info("🤖 Initializing Gymmando agent...")
-        gymmando = Gymmando()
+        # Extract user_id from room metadata or use default
+        user_id = (
+            ctx.room.metadata.get("user_id")
+            if ctx.room and ctx.room.metadata
+            else "default_user"
+        )
+        gymmando = Gymmando(user_id=user_id)
 
         # Start the agent session with the room
         logger.info("🎯 Starting agent session with room...")
