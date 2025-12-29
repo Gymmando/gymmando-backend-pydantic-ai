@@ -6,11 +6,14 @@ Handles saving and retrieving workout data from Supabase.
 from typing import Optional
 from uuid import UUID
 
-from gymmando_graph.database import supabase
+# Import the function instead of the global variable
+from gymmando_graph.database import get_supabase_client
 from gymmando_graph.database.models import WorkoutCreateModel, WorkoutDBModel
 from gymmando_graph.modules.workout.schemas import WorkoutState
 from gymmando_graph.utils import Logger
 
+# Note: Ideally, Logger should also be initialized lazily,
+# but let's fix the Database first as it's the primary network bottleneck.
 logger = Logger().get_logger()
 
 
@@ -29,16 +32,6 @@ class WorkoutDatabase:
     def save_workout(self, state: WorkoutState) -> Optional[WorkoutDBModel]:
         """
         Save a validated workout to the database.
-
-        Args:
-            state: WorkoutState object containing validated workout data
-
-        Returns:
-            WorkoutDBModel if successful, None otherwise
-
-        Raises:
-            ValueError: If required fields are missing
-            Exception: If database operation fails
         """
         # Validate that required fields are present
         if not state.exercise or not state.sets or not state.reps or not state.weight:
@@ -65,8 +58,10 @@ class WorkoutDatabase:
                 f"for user {workout_create.user_id}"
             )
 
+            # FIX: Get the client right before use
+            client = get_supabase_client()
             response = (
-                supabase.table(self.table_name)
+                client.table(self.table_name)
                 .insert(workout_create.to_db_dict())
                 .execute()
             )
@@ -90,17 +85,12 @@ class WorkoutDatabase:
     ) -> Optional[WorkoutDBModel]:
         """
         Retrieve a workout by ID for a specific user.
-
-        Args:
-            workout_id: UUID of the workout
-            user_id: User ID to ensure data isolation
-
-        Returns:
-            WorkoutDBModel if found, None otherwise
         """
         try:
+            # FIX: Get the client here
+            client = get_supabase_client()
             response = (
-                supabase.table(self.table_name)
+                client.table(self.table_name)
                 .select("*")
                 .eq("id", str(workout_id))
                 .eq("user_id", user_id)
@@ -122,18 +112,12 @@ class WorkoutDatabase:
     ) -> list[WorkoutDBModel]:
         """
         Retrieve workouts for a specific user.
-
-        Args:
-            user_id: User ID to filter workouts
-            limit: Maximum number of workouts to return (default: 10)
-            offset: Number of workouts to skip (for pagination, default: 0)
-
-        Returns:
-            List of WorkoutDBModel objects
         """
         try:
+            # FIX: Get the client here
+            client = get_supabase_client()
             response = (
-                supabase.table(self.table_name)
+                client.table(self.table_name)
                 .select("*")
                 .eq("user_id", user_id)
                 .order("created_at", desc=True)
