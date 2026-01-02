@@ -2,7 +2,7 @@ from typing import Literal, cast
 
 from langgraph.graph import END, START, StateGraph
 
-from gymmando_graph.modules.workout.agents import WorkoutParser
+from gymmando_graph.modules.workout.agents import WorkoutParser, WorkoutRetrieverAgent
 from gymmando_graph.modules.workout.nodes.workout_database import WorkoutDatabase
 from gymmando_graph.modules.workout.nodes.workout_validator import WorkoutValidator
 from gymmando_graph.modules.workout.schemas import WorkoutState
@@ -19,6 +19,8 @@ class WorkoutGraph:
         self.validator = WorkoutValidator()
         # initialize the database service
         self.database = WorkoutDatabase()
+        # initialize the retriever agent
+        self.retriever = WorkoutRetrieverAgent()
 
         # create the graph
         self.graph = self._build_graph()
@@ -30,10 +32,20 @@ class WorkoutGraph:
         workflow.add_node("workout_parser", self._workout_parser_node)
         workflow.add_node("workout_validator", self._workout_validator_node)
         workflow.add_node("workout_database", self._workout_database_node)
+        workflow.add_node("workout_retriever", self._workout_retriever_node)
 
         # add edges
         workflow.add_edge(START, "workout_parser")
-        workflow.add_edge("workout_parser", "workout_validator")
+        # Route based on intent: get -> retriever, put -> validator
+        workflow.add_conditional_edges(
+            "workout_parser",
+            self._route_by_intent,
+            {
+                "retriever": "workout_retriever",
+                "validator": "workout_validator",
+            },
+        )
+        workflow.add_edge("workout_retriever", END)
         workflow.add_conditional_edges(
             "workout_validator",
             self._should_save_to_database,
@@ -45,6 +57,19 @@ class WorkoutGraph:
         workflow.add_edge("workout_database", END)
 
         return workflow.compile()
+
+    def _route_by_intent(
+        self, state: WorkoutState
+    ) -> Literal["retriever", "validator"]:
+        """
+        Route based on intent after parsing.
+
+        Routes to retriever if intent is "get" (query operation).
+        Routes to validator if intent is "put" (save operation).
+        """
+        if state.intent == "get":
+            return "retriever"
+        return "validator"
 
     def _should_save_to_database(
         self, state: WorkoutState
@@ -75,6 +100,18 @@ class WorkoutGraph:
         state.rest_time = parsed_result.rest_time
         state.comments = parsed_result.comments
 
+        return state
+
+    def _workout_retriever_node(self, state: WorkoutState) -> WorkoutState:
+        """Retrieve workout data based on user query."""
+        try:
+            logger.info(f"Retrieving workouts for user: {state.user_id}")
+            result = self.retriever.retrieve(state.user_input, state.user_id)
+            state.response = result
+            logger.info("Workout retrieval completed successfully")
+        except Exception as e:
+            logger.error(f"Error retrieving workouts: {e}", exc_info=True)
+            state.response = "Sorry, I encountered an error retrieving your workouts. Please try again."
         return state
 
     def _workout_validator_node(self, state: WorkoutState) -> WorkoutState:
