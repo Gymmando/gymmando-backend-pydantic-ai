@@ -43,6 +43,12 @@ class Gymmando(Agent):
         state = WorkoutState(user_input=transcript, user_id=self.user_id, intent=intent)
         try:
             state = self.workout_graph.run(state)
+
+            # Handle "get" intent - return the response directly (contains query results)
+            if intent == "get":
+                return state.response if state.response else "No workout data found."
+
+            # Handle "put" intent - check validation status
             if state.validation_status == "complete":
                 response = f"Logged: {state.exercise}, {state.sets}x{state.reps}."
                 if state.weight:
@@ -50,7 +56,7 @@ class Gymmando(Agent):
                 return response + " Want to save it?"
             return f"Missing info: {', '.join(state.missing_fields)}."
         except Exception as e:
-            logger.error(f"Error in workout tool: {e}")
+            logger.error(f"Error in workout tool: {e}", exc_info=True)
             return "Error processing workout data."
 
 
