@@ -64,22 +64,51 @@ class Gymmando(Agent):
 
 async def entrypoint(ctx: agents.JobContext):
     logger.info(f"🚀 Job Assigned: {ctx.job.id}")
+    logger.info(f"📋 Room: {ctx.room.name}, Room ID: {ctx.room.sid}")
+    logger.info(f"👥 Current participants in room: {len(ctx.room.remote_participants)}")
 
     # 1. GET USER ID FROM PARTICIPANT IDENTITY OR METADATA
     user_id = "default_user"
+
+    # Helper function to extract user_id from participants
+    def extract_user_id_from_participants():
+        nonlocal user_id
+        try:
+            logger.info(f"🔍 Checking room participants...")
+            logger.info(
+                f"   Remote participants count: {len(ctx.room.remote_participants)}"
+            )
+
+            # Log all participant identities for debugging
+            for sid, participant in ctx.room.remote_participants.items():
+                logger.info(
+                    f"   Participant SID: {sid}, Identity: {participant.identity}"
+                )
+                if participant.identity and participant.identity != "agent":
+                    user_id = participant.identity
+                    logger.info(f"✅ Found user_id from participant identity: {user_id}")
+                    return user_id
+        except Exception as e:
+            logger.warning(f"Error checking participants: {e}")
+        return None
+
     try:
-        # First, try to get from participant identity (set via token)
-        # The identity is set when creating the token with user_id
         await ctx.connect()  # Connect to get room participants
-        for participant in ctx.room.remote_participants.values():
-            if participant.identity and participant.identity != "agent":
-                user_id = participant.identity
-                logger.info(f"✅ Found user_id from participant identity: {user_id}")
-                break
+
+        # Try to get user_id from participants immediately
+        extract_user_id_from_participants()
+
+        # If not found, wait a bit and try again (participant might join after agent)
+        if user_id == "default_user":
+            import asyncio
+
+            await asyncio.sleep(1)  # Wait 1 second for participant to join
+            extract_user_id_from_participants()
 
         # Fallback: try metadata if identity not found
         if user_id == "default_user":
             metadata_raw = ctx.room.metadata
+            logger.info(f"🔍 Checking room metadata: {metadata_raw}")
             if metadata_raw:
                 # If it's a string, try to parse JSON
                 if isinstance(metadata_raw, str):
@@ -94,7 +123,7 @@ async def entrypoint(ctx: agents.JobContext):
                 if user_id != "default_user":
                     logger.info(f"✅ Found user_id from metadata: {user_id}")
     except Exception as e:
-        logger.warning(f"User ID parse failed: {e}. Using default_user.")
+        logger.warning(f"User ID parse failed: {e}. Using default_user.", exc_info=True)
 
     logger.info(f"👤 Using user_id: {user_id}")
 
@@ -139,6 +168,21 @@ async def entrypoint(ctx: agents.JobContext):
         )
 
         logger.info(f"✅ Session active in room: {ctx.room.name}")
+
+        # Check participants again after session starts (participant might have joined)
+        import asyncio
+
+        await asyncio.sleep(0.5)  # Brief wait for participant to fully connect
+        extract_user_id_from_participants()
+
+        # Update gymmando's user_id if we found it
+        if user_id != "default_user":
+            gymmando.user_id = user_id
+            logger.info(f"✅ Final user_id after session start: {user_id}")
+        else:
+            logger.warning(
+                f"⚠️ Still using default_user - no participant identity found"
+            )
 
         # 3. GENERATE INITIAL GREETING
         logger.info(f"🎤 Generating greeting with prompt: {greeting_prompt[:50]}...")
