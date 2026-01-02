@@ -6,6 +6,7 @@ livekit-plugins-groq==1.1.7
 livekit-plugins-silero==1.1.7
 supabase
 pydantic
+langchain==0.1.0
 langchain-core
 langchain-openai
 langchain-groq
