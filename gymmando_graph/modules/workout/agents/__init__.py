@@ -1,4 +1,4 @@
 from .workout_parser import WorkoutParser
-from .workout_retriever import WorkoutRetrieverAgent
+from .workout_retriever import WorkoutRetriever
 
-__all__ = ["WorkoutParser", "WorkoutRetrieverAgent"]
+__all__ = ["WorkoutParser", "WorkoutRetriever"]

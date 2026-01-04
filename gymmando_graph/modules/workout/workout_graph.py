@@ -2,8 +2,8 @@ from typing import Literal, cast
 
 from langgraph.graph import END, START, StateGraph
 
-from gymmando_graph.modules.workout.agents import WorkoutParser, WorkoutRetrieverAgent
-from gymmando_graph.modules.workout.nodes.workout_database import WorkoutDatabase
+from gymmando_graph.modules.workout.agents import WorkoutParser, WorkoutRetriever
+from gymmando_graph.modules.workout.crud import WorkoutCRUD
 from gymmando_graph.modules.workout.nodes.workout_validator import WorkoutValidator
 from gymmando_graph.modules.workout.schemas import WorkoutState
 from gymmando_graph.utils import Logger
@@ -18,9 +18,9 @@ class WorkoutGraph:
         # initialize the validator
         self.validator = WorkoutValidator()
         # initialize the database service
-        self.database = WorkoutDatabase()
+        self.database = WorkoutCRUD()
         # initialize the retriever agent
-        self.retriever = WorkoutRetrieverAgent()
+        self.retriever = WorkoutRetriever()
 
         # create the graph
         self.graph = self._build_graph()
@@ -122,7 +122,7 @@ class WorkoutGraph:
         """Save workout to database. Called only when validation is complete and intent is 'put'."""
         try:
             logger.info("Attempting to save workout to database...")
-            saved_workout = self.database.save_workout(state)
+            saved_workout = self.database.create(state)
 
             if saved_workout:
                 logger.info(f"Workout saved successfully with ID: {saved_workout.id}")

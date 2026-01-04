@@ -1,4 +1,6 @@
+import json
 from pathlib import Path
+from typing import Optional
 
 from dotenv import load_dotenv
 from langchain_core.prompts import (
@@ -6,15 +8,86 @@ from langchain_core.prompts import (
     HumanMessagePromptTemplate,
     SystemMessagePromptTemplate,
 )
+from langchain_core.tools import StructuredTool
 from langchain_openai import ChatOpenAI
 
-from gymmando_graph.modules.workout.nodes.workout_query_tools import query_workouts
-from gymmando_graph.utils import PromptTemplateLoader
+from gymmando_graph.modules.workout.crud import WorkoutCRUD
+from gymmando_graph.utils import Logger, PromptTemplateLoader
 
 load_dotenv()
 
+logger = Logger().get_logger()
 
-class WorkoutRetrieverAgent:
+# Initialize WorkoutCRUD instance
+_workout_crud = WorkoutCRUD()
+
+
+def _query_workouts_impl(
+    user_id: str,
+    exercise: Optional[str] = None,
+    exercise_type: Optional[str] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    limit: Optional[int] = 10,
+    order_by: Optional[str] = "created_at",
+    order_direction: Optional[str] = "desc",
+) -> str:
+    """
+    Query workouts from the database based on various filters.
+
+    Args:
+        user_id: The user ID to filter workouts by (required)
+        exercise: Filter by specific exercise name (e.g., "squats", "bench press")
+        exercise_type: Filter by exercise type/category (e.g., "legs", "chest", "arms")
+        start_date: Start date for date range filter (YYYY-MM-DD format)
+        end_date: End date for date range filter (YYYY-MM-DD format)
+        limit: Maximum number of workouts to return (default: 10)
+        order_by: Field to order by (default: "created_at")
+        order_direction: Order direction - "asc" or "desc" (default: "desc")
+
+    Returns:
+        JSON string of workout data matching the query
+    """
+    try:
+        logger.info(
+            f"🔍 Querying workouts from Supabase with params: user_id={user_id}, exercise={exercise}, limit={limit}"
+        )
+
+        # Use WorkoutCRUD to query workouts
+        workouts = _workout_crud.query(
+            user_id=user_id,
+            exercise=exercise,
+            exercise_type=exercise_type,
+            start_date=start_date,
+            end_date=end_date,
+            limit=limit,
+            order_by=order_by,
+            order_direction=order_direction,
+        )
+
+        logger.info(f"Query returned {len(workouts)} workouts")
+
+        if workouts:
+            # Convert to JSON string for LLM consumption
+            workouts_dict = [workout.model_dump() for workout in workouts]
+            return json.dumps(workouts_dict, default=str)
+
+        return json.dumps([])
+
+    except Exception as e:
+        logger.error(f"Failed to query workouts: {e}", exc_info=True)
+        return json.dumps({"error": str(e)})
+
+
+# Create the LangChain tool
+query_workouts = StructuredTool.from_function(
+    func=_query_workouts_impl,
+    name="query_workouts",
+    description="Query workouts from the database based on various filters. Use this to retrieve workout history for users.",
+)
+
+
+class WorkoutRetriever:
     def __init__(self):
         # Initialize the prompt
         # Get the prompt templates directory relative to this file
@@ -109,7 +182,7 @@ if __name__ == "__main__":
     print()
 
     # Now test the agent
-    agent = WorkoutRetrieverAgent()
+    agent = WorkoutRetriever()
 
     # Test 1: Check if any workouts exist for the user (no exercise filter)
     print("Test 1: Getting any workouts for user...")
