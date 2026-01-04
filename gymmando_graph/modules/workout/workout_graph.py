@@ -31,44 +31,42 @@ class WorkoutGraph:
         # add nodes
         workflow.add_node("workout_parser", self._workout_parser_node)
         workflow.add_node("workout_validator", self._workout_validator_node)
-        workflow.add_node("workout_database", self._workout_database_node)
-        workflow.add_node("workout_retriever", self._workout_retriever_node)
+        workflow.add_node("workout_creator", self._workout_creator_node)
+        workflow.add_node("workout_reader", self._workout_reader_node)
 
         # add edges
         workflow.add_edge(START, "workout_parser")
-        # Route based on intent: get -> retriever, put -> validator
+        # Route based on intent: get -> reader, put -> validator
         workflow.add_conditional_edges(
             "workout_parser",
             self._route_by_intent,
             {
-                "retriever": "workout_retriever",
+                "reader": "workout_reader",
                 "validator": "workout_validator",
             },
         )
-        workflow.add_edge("workout_retriever", END)
+        workflow.add_edge("workout_reader", END)
         workflow.add_conditional_edges(
             "workout_validator",
             self._should_save_to_database,
             {
-                "database": "workout_database",
+                "database": "workout_creator",
                 "end": END,
             },
         )
-        workflow.add_edge("workout_database", END)
+        workflow.add_edge("workout_creator", END)
 
         return workflow.compile()
 
-    def _route_by_intent(
-        self, state: WorkoutState
-    ) -> Literal["retriever", "validator"]:
+    def _route_by_intent(self, state: WorkoutState) -> Literal["reader", "validator"]:
         """
         Route based on intent after parsing.
 
-        Routes to retriever if intent is "get" (query operation).
-        Routes to validator if intent is "put" (save operation).
+        Routes to reader if intent is "get" (read operation).
+        Routes to validator if intent is "put" (create operation).
         """
         if state.intent == "get":
-            return "retriever"
+            return "reader"
         return "validator"
 
     def _should_save_to_database(
@@ -102,8 +100,8 @@ class WorkoutGraph:
 
         return state
 
-    def _workout_retriever_node(self, state: WorkoutState) -> WorkoutState:
-        """Retrieve workout data based on user query."""
+    def _workout_reader_node(self, state: WorkoutState) -> WorkoutState:
+        """Read workout data based on user query."""
         try:
             logger.info(f"Retrieving workouts for user: {state.user_id}")
             result = self.retriever.retrieve(state.user_input, state.user_id)
@@ -118,8 +116,8 @@ class WorkoutGraph:
         """Validate that all required workout fields are present."""
         return cast(WorkoutState, self.validator.validate(state))
 
-    def _workout_database_node(self, state: WorkoutState) -> WorkoutState:
-        """Save workout to database. Called only when validation is complete and intent is 'put'."""
+    def _workout_creator_node(self, state: WorkoutState) -> WorkoutState:
+        """Create workout in database. Called only when validation is complete and intent is 'put'."""
         try:
             logger.info("Attempting to save workout to database...")
             saved_workout = self.database.create(state)
