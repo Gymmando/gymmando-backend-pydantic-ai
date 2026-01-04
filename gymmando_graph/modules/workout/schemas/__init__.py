@@ -1,4 +1,4 @@
-from .workout_creator_schemas import WorkoutCreatorResponse
 from .workout_graph_schemas import WorkoutState
+from .workout_parser_schemas import WorkoutParserResponse
 
-__all__ = ["WorkoutState", "WorkoutCreatorResponse"]
+__all__ = ["WorkoutState", "WorkoutParserResponse"]

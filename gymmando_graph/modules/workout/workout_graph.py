@@ -2,7 +2,7 @@ from typing import Any, Literal, cast
 
 from langgraph.graph import END, START, StateGraph
 
-from gymmando_graph.modules.workout.agents import WorkoutCreator, WorkoutReader
+from gymmando_graph.modules.workout.agents import WorkoutParser, WorkoutReader
 from gymmando_graph.modules.workout.crud import WorkoutCRUD
 from gymmando_graph.modules.workout.nodes.workout_validator import WorkoutValidator
 from gymmando_graph.modules.workout.schemas import WorkoutState
@@ -13,8 +13,8 @@ logger = Logger().get_logger()
 
 class WorkoutGraph:
     def __init__(self):
-        # initialize the workout creator
-        self.workout_creator = WorkoutCreator()
+        # initialize the workout parser
+        self.workout_parser = WorkoutParser()
         # initialize the validator
         self.validator = WorkoutValidator()
         # initialize the database service
@@ -29,7 +29,7 @@ class WorkoutGraph:
         workflow = StateGraph(WorkoutState)
 
         # add nodes
-        workflow.add_node("workout_creator", self._workout_creator_node)
+        workflow.add_node("workout_parser", self._workout_parser_node)
         workflow.add_node("workout_validator", self._workout_validator_node)
         workflow.add_node("workout_saver", self._workout_saver_node)
         workflow.add_node("workout_reader", self._workout_reader_node)
@@ -37,10 +37,10 @@ class WorkoutGraph:
         workflow.add_node("workout_deletor", self._workout_deletor_node)
 
         # add edges
-        workflow.add_edge(START, "workout_creator")
+        workflow.add_edge(START, "workout_parser")
         # Route based on intent: get -> reader, put -> check if update or create, delete -> deletor
         workflow.add_conditional_edges(
-            "workout_creator",
+            "workout_parser",
             self._route_by_intent,
             {
                 "reader": "workout_reader",
@@ -103,10 +103,10 @@ class WorkoutGraph:
             return "database"
         return "end"
 
-    def _workout_creator_node(self, state: WorkoutState) -> WorkoutState:
-        """Create workout object from user input."""
-        # Process the user input through the creator
-        parsed_result = self.workout_creator.process(state.user_input)
+    def _workout_parser_node(self, state: WorkoutState) -> WorkoutState:
+        """Parse workout object from user input."""
+        # Process the user input through the parser
+        parsed_result = self.workout_parser.process(state.user_input)
 
         # Update state with parsed workout data
         state.exercise = parsed_result.exercise
