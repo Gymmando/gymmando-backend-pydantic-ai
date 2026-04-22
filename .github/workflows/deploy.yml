@@ -14,42 +14,39 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      id-token: write  # Required for WIF
-    
+      id-token: write
+
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-      
-      - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@v2
+      - uses: actions/checkout@v4
+
+      - uses: google-github-actions/auth@v2
         with:
-          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
-          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
-      
-      - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v2
-      
-      - name: Configure Docker for Artifact Registry
+          workload_identity_provider: 'projects/35986343329/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+          service_account: 'github-actions@gymmando-493919.iam.gserviceaccount.com'
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker
         run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev
-      
-      - name: Build and push API image
+
+      - name: Build and push API
         run: |
-          docker build -t ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/gymmando-api:${{ github.sha }} ./gymmando_api
-          docker build -t ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/gymmando-api:latest ./gymmando_api
-          docker push ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/gymmando-api --all-tags
-      
-      - name: Deploy to Cloud Run
+          docker build -t ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/gymmando-api:${{ github.sha }}./gymmando_api
+          docker push ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/gymmando-api:${{ github.sha }}
+
+      - name: Deploy API to Cloud Run
         run: |
-          gcloud run services update gymmando-api \
+          gcloud run deploy gymmando-api \
             --image ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/gymmando-api:${{ github.sha }} \
             --region ${{ env.REGION }}
-      
-      - name: Build and push Agent image
+
+      - name: Build and push Agent
         run: |
-          docker build -t ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/gymmando-agent:${{ github.sha }} ./gymmando_graph
-          docker build -t ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/gymmando-agent:latest ./gymmando_graph
-          docker push ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/gymmando-agent --all-tags
-      
-      - name: Update agent VM container
+          docker build -t ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/gymmando-agent:${{ github.sha }}./gymmando_graph
+          docker push ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/gymmando-agent:${{ github.sha }}
+
+      - name: Update Agent VM
         run: |
-          gcloud compute ssh gymmando --zone=${{ env.REGION }}-a --command="sudo docker pull ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/gymmando-agent:${{ github.sha }} && sudo systemctl restart konlet"
+          gcloud compute instances update-container gymmando \
+            --zone=${{ env.REGION }}-a \
+            --container-image=${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/gymmando-agent:${{ github.sha }}
