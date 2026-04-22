@@ -148,11 +148,11 @@ class WorkoutGraph:
         """
         if state.intent == "get":
             return "reader"
-        elif state.intent == "delete":
-            return "deletor"
-        elif state.intent == "put" and state.workout_id:
-            # If workout_id is present, it's an update operation
-            return "updator"
+        # elif state.intent == "delete":
+        #     return "deletor"
+        # elif state.intent == "put" and state.workout_id:
+        #     # If workout_id is present, it's an update operation
+        #     return "updator"
         else:
             # No workout_id means it's a create operation
             return "validator"
