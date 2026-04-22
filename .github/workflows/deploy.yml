@@ -23,6 +23,7 @@ jobs:
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
+          # This must match the WIF provider created in Terraform
           workload_identity_provider: 'projects/35986343329/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
           service_account: 'github-actions@gymmando-493919.iam.gserviceaccount.com'
 
@@ -34,9 +35,10 @@ jobs:
 
       - name: Build and push API image
         run: |
-          # Added space before the dot/path
-          docker build -t ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/gymmando-api:${{ github.sha }} -t ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/gymmando-api:latest ./gymmando_api
-          docker push ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/gymmando-api --all-tags
+          IMAGE_TAG=${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/gymmando-api
+          # Note the space before ./gymmando_api
+          docker build -t $IMAGE_TAG:${{ github.sha }} -t $IMAGE_TAG:latest ./gymmando_api
+          docker push $IMAGE_TAG --all-tags
 
       - name: Deploy API to Cloud Run
         run: |
@@ -50,9 +52,10 @@ jobs:
 
       - name: Build and push Agent image
         run: |
-          # Added space before the dot/path
-          docker build -t ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/gymmando-agent:${{ github.sha }} -t ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/gymmando-agent:latest ./gymmando_graph
-          docker push ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/gymmando-agent --all-tags
+          IMAGE_TAG=${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/gymmando-agent
+          # Note the space before ./gymmando_graph
+          docker build -t $IMAGE_TAG:${{ github.sha }} -t $IMAGE_TAG:latest ./gymmando_graph
+          docker push $IMAGE_TAG --all-tags
 
       - name: Update Agent VM
         run: |
