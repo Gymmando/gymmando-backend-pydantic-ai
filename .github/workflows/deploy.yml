@@ -34,8 +34,9 @@ jobs:
 
       - name: Build and push API image
         run: |
-          docker build -t ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/gymmando-api:${{ github.sha }}./gymmando_api
-          docker push ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/gymmando-api:${{ github.sha }}
+          # Added space before the dot/path
+          docker build -t ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/gymmando-api:${{ github.sha }} -t ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/gymmando-api:latest ./gymmando_api
+          docker push ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/gymmando-api --all-tags
 
       - name: Deploy API to Cloud Run
         run: |
@@ -49,13 +50,12 @@ jobs:
 
       - name: Build and push Agent image
         run: |
-          docker build -t ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/gymmando-agent:${{ github.sha }}./gymmando_graph
-          docker push ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/gymmando-agent:${{ github.sha }}
+          # Added space before the dot/path
+          docker build -t ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/gymmando-agent:${{ github.sha }} -t ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/gymmando-agent:latest ./gymmando_graph
+          docker push ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/gymmando-agent --all-tags
 
       - name: Update Agent VM
         run: |
           gcloud compute instances update-container gymmando \
             --zone=${{ env.REGION }}-a \
             --container-image=${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/gymmando-agent:${{ github.sha }}
-
-            
