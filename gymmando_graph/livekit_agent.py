@@ -254,7 +254,8 @@ async def entrypoint(ctx: agents.JobContext):
         logger.info("✅ TTS service initialized")
 
         session = AgentSession(
-            stt=groq.STT(model="whisper-large-v3-turbo"),
+            stt=openai.STT(model="whisper-1"),
+            # stt=groq.STT(model="whisper-large-v3-turbo"),
             tts=tts_service,
             llm=openai.LLM(model="gpt-4o-mini"),
             vad=silero.VAD.load(force_cpu=True),
